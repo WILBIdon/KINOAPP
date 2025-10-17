@@ -1,0 +1,12 @@
+# bc/.htaccess
+# Reescritura de URLs para portal público multicliente
+
+RewriteEngine On
+RewriteBase /bc/
+
+# Si la solicitud NO es para un archivo o directorio existente
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Reescribir /bc/cliente-id/ a /bc/index.php?client=cliente-id
+RewriteRule ^([a-zA-Z0-9_-]+)/?$ index.php?client=$1 [L,QSA]
