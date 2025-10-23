@@ -1,0 +1,6 @@
+[2025-10-21 13:23:06] --- NUEVA SOLICITUD API ---
+[2025-10-21 13:23:06] ERROR: Cliente '111' no encontrado.
+[2025-10-23 11:04:50] --- NUEVA SOLICITUD API ---
+[2025-10-23 11:04:50] ERROR: Cliente '111' no encontrado.
+[2025-10-23 11:05:15] --- NUEVA SOLICITUD API ---
+[2025-10-23 11:05:15] ERROR: Cliente '111' no encontrado.

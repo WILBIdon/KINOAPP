@@ -1,0 +1,1 @@
+console.log('BC-base script cargado');

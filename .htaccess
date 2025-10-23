@@ -1,0 +1,12 @@
+# admin/.htaccess
+# Reescritura de URLs para panel de administración multicliente
+
+RewriteEngine On
+RewriteBase /admin/
+
+# Si la solicitud NO es para un archivo o directorio existente
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Reescribir /admin/cliente-id/ a /admin/index.php?client=cliente-id
+RewriteRule ^([a-zA-Z0-9_-]+)/?$ index.php?client=$1 [L,QSA]

@@ -1,0 +1,1 @@
+<?php echo 'BC Base funcionando'; ?>

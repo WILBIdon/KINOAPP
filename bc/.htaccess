@@ -1,0 +1,9 @@
+RewriteEngine On
+RewriteBase /bc/
+
+# Si la solicitud no es para un archivo o directorio existente...
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# ...redirige internamente a index.php, pasando la URL como el parámetro 'client'
+RewriteRule ^(.+)$ index.php?client=$1 [QSA,L]

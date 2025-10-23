@@ -1,0 +1,3 @@
+RewriteEngine On
+RewriteBase /bc/kino/
+RewriteRule ^$ index.php [L]

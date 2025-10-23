@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control de Clientes</title><script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-6 max-w-4xl">
+        
+        <div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
+            <h1 class="text-3xl font-bold mb-6 text-gray-800">Crear Nuevo Cliente</h1>
+            <form id="generator-form" enctype="multipart/form-data">
+                <fieldset class="border-t pt-6 mb-6"><legend class="text-lg font-semibold text-gray-700 px-2">1. Identidad</legend><div class="grid md:grid-cols-2 gap-4 mt-4"><div><label for="client_name" class="block">Nombre</label><input type="text" id="client_name" name="client_name" required class="w-full border rounded px-3 py-2"></div><div><label for="client_id" class="block">ID para URL</label><input type="text" id="client_id" name="client_id" required class="w-full border rounded px-3 py-2"></div></div></fieldset>
+                <fieldset class="border-t pt-6 mb-6"><legend class="text-lg font-semibold text-gray-700 px-2">2. Acceso Admin</legend><div class="grid md:grid-cols-2 gap-4 mt-4"><div><label for="admin_user" class="block">Usuario</label><input type="text" id="admin_user" name="admin_user" required class="w-full border rounded px-3 py-2"></div><div><label for="admin_pass" class="block">Contraseña</label><input type="password" id="admin_pass" name="admin_pass" required class="w-full border rounded px-3 py-2"></div></div></fieldset>
+                <fieldset class="border-t pt-6 mb-6"><legend class="text-lg font-semibold text-gray-700 px-2">3. Base de Datos</legend><div class="grid md:grid-cols-2 gap-4 mt-4"><div><label for="db_name" class="block">Nombre BD</label><input type="text" id="db_name" name="db_name" required class="w-full border rounded px-3 py-2"></div><div><label for="db_user" class="block">Usuario BD</label><input type="text" id="db_user" name="db_user" required class="w-full border rounded px-3 py-2" value="if0_39064130"></div><div><label for="db_pass" class="block">Contraseña BD</label><input type="password" id="db_pass" name="db_pass" required class="w-full border rounded px-3 py-2"></div><div><label for="db_host" class="block">Host BD</label><input type="text" id="db_host" name="db_host" required class="w-full border rounded px-3 py-2" value="sql200.infinityfree.com"></div></div></fieldset>
+                <fieldset class="border-t pt-6 mb-6"><legend class="text-lg font-semibold text-gray-700 px-2">4. Personalización</legend><div class="grid md:grid-cols-2 gap-4 mt-4"><div><label for="logo" class="block">Logo (.png)</label><input type="file" id="logo" name="logo" required accept="image/png" class="w-full border rounded px-3 py-2"></div><div><label for="color_primary" class="block">Color</label><input type="color" id="color_primary" name="color_primary" value="#DC2626" class="w-full h-10 border rounded"></div></div></fieldset>
+                <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg text-lg">Generar Cliente</button>
+            </form>
+            <div id="response-message" class="mt-6 p-4 rounded-lg hidden"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-lg p-8">
+            <h1 class="text-3xl font-bold mb-6 text-gray-800">Gestionar Clientes Existentes</h1>
+            <div id="client-list-container" class="space-y-4">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('generator-form');
+        const responseMsg = document.getElementById('response-message');
+        const clientListContainer = document.getElementById('client-list-container');
+
+        // --- Lógica para CREAR clientes (sin cambios) ---
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true; btn.textContent = 'Generando...';
+            responseMsg.classList.add('hidden');
+            fetch('client-generator.php', { method: 'POST', body: new FormData(form) })
+            .then(r => r.json()).then(d => {
+                responseMsg.classList.remove('hidden');
+                if (d.success) {
+                    responseMsg.className = 'mt-6 p-4 rounded-lg bg-green-100 text-green-800';
+                    responseMsg.innerHTML = `<strong>¡Éxito!</strong> Cliente creado. Refrescando lista...`;
+                    form.reset();
+                    loadClients(); // Recargar la lista después de crear
+                } else {
+                    responseMsg.className = 'mt-6 p-4 rounded-lg bg-red-100 text-red-800';
+                    responseMsg.innerHTML = `<strong>Error:</strong> ${d.error}`;
+                }
+            }).catch(() => {
+                responseMsg.className = 'mt-6 p-4 rounded-lg bg-red-100 text-red-800';
+                responseMsg.innerHTML = '<strong>Error de conexión.</strong>';
+            }).finally(() => { btn.disabled = false; btn.textContent = 'Generar Cliente'; });
+        });
+        document.getElementById('client_name').addEventListener('input', function() {
+            document.getElementById('client_id').value = this.value.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
+        });
+
+        // --- NUEVA Lógica para LISTAR y BORRAR clientes ---
+        async function loadClients() {
+            clientListContainer.innerHTML = '<p class="text-gray-500">Cargando clientes...</p>';
+            try {
+                const response = await fetch('client-manager.php?action=list');
+                const data = await response.json();
+                if (!data.success || !data.clients.length) {
+                    clientListContainer.innerHTML = '<p class="text-gray-500">No hay clientes creados.</p>';
+                    return;
+                }
+                
+                clientListContainer.innerHTML = ''; // Limpiar
+                data.clients.forEach(client => {
+                    const clientEl = document.createElement('div');
+                    clientEl.className = 'border rounded-lg p-4 flex justify-between items-center';
+                    clientEl.innerHTML = `
+                        <div>
+                            <h3 class="font-bold text-lg">${client.name}</h3>
+                            <p class="text-sm text-gray-500">ID: ${client.id}</p>
+                            <div class="mt-2 space-x-4">
+                                <a href="bc/${client.id}/" target="_blank" class="text-blue-600 hover:underline">Ver Portal Público</a>
+                                <a href="admin/index.php?client=${client.id}" target="_blank" class="text-green-600 hover:underline">Ir a su Admin</a>
+                            </div>
+                        </div>
+                        <button data-id="${client.id}" class="delete-btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Eliminar</button>
+                    `;
+                    clientListContainer.appendChild(clientEl);
+                });
+
+            } catch (error) {
+                clientListContainer.innerHTML = '<p class="text-red-500">Error al cargar la lista de clientes.</p>';
+            }
+        }
+
+        clientListContainer.addEventListener('click', async function(e) {
+            if (e.target.classList.contains('delete-btn')) {
+                const clientId = e.target.dataset.id;
+                if (confirm(`¿Estás seguro de que quieres eliminar al cliente "${clientId}"?\n¡Esta acción es PERMANENTE y borrará todos sus archivos!`)) {
+                    try {
+                        const response = await fetch(`client-manager.php?action=delete&client=${clientId}`);
+                        const data = await response.json();
+                        alert(data.message || data.error);
+                        loadClients(); // Recargar la lista
+                    } catch {
+                        alert('Error de conexión al intentar eliminar el cliente.');
+                    }
+                }
+            }
+        });
+
+        // Cargar la lista de clientes al iniciar la página
+        loadClients();
+    </script>
+</body>
+</html>
