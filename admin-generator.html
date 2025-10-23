@@ -31,12 +31,13 @@
         const responseMsg = document.getElementById('response-message');
         const clientListContainer = document.getElementById('client-list-container');
 
-        // --- Lógica para CREAR clientes (sin cambios) ---
+        // --- Lógica para CREAR clientes ---
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             const btn = document.getElementById('submit-btn');
             btn.disabled = true; btn.textContent = 'Generando...';
             responseMsg.classList.add('hidden');
+            // Llama al script PHP corregido
             fetch('client-generator.php', { method: 'POST', body: new FormData(form) })
             .then(r => r.json()).then(d => {
                 responseMsg.classList.remove('hidden');
@@ -47,6 +48,7 @@
                     loadClients(); // Recargar la lista después de crear
                 } else {
                     responseMsg.className = 'mt-6 p-4 rounded-lg bg-red-100 text-red-800';
+                    // Muestra el error detallado del PHP
                     responseMsg.innerHTML = `<strong>Error:</strong> ${d.error}`;
                 }
             }).catch(() => {
@@ -55,13 +57,15 @@
             }).finally(() => { btn.disabled = false; btn.textContent = 'Generar Cliente'; });
         });
         document.getElementById('client_name').addEventListener('input', function() {
+            // Genera ID limpio y en minúsculas
             document.getElementById('client_id').value = this.value.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
         });
 
-        // --- NUEVA Lógica para LISTAR y BORRAR clientes ---
+        // --- Lógica para LISTAR y BORRAR clientes ---
         async function loadClients() {
             clientListContainer.innerHTML = '<p class="text-gray-500">Cargando clientes...</p>';
             try {
+                // Llama al script PHP que lista los clientes
                 const response = await fetch('client-manager.php?action=list');
                 const data = await response.json();
                 if (!data.success || !data.clients.length) {
@@ -97,6 +101,7 @@
                 const clientId = e.target.dataset.id;
                 if (confirm(`¿Estás seguro de que quieres eliminar al cliente "${clientId}"?\n¡Esta acción es PERMANENTE y borrará todos sus archivos!`)) {
                     try {
+                        // Llama al script PHP para eliminar el cliente
                         const response = await fetch(`client-manager.php?action=delete&client=${clientId}`);
                         const data = await response.json();
                         alert(data.message || data.error);

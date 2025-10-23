@@ -1,6 +1,6 @@
 <?php
 // client-generator.php
-// Versión 2.2: Con debug detallado de errores de conexión
+// Versión 3.0: Soluciona el problema de generación de carpetas y archivos base
 
 header('Content-Type: application/json');
 
@@ -52,8 +52,8 @@ try {
     }
 
     // --- VERIFICAR SI EL CLIENTE YA EXISTE ---
-    $client_dir = __DIR__ . '/clientes/' . $client_id . '/';
-    if (is_dir($client_dir)) {
+    $client_config_dir = __DIR__ . '/clientes/' . $client_id . '/';
+    if (is_dir($client_config_dir)) {
         throw new Exception("El cliente con ID '$client_id' ya existe. Elija otro ID.");
     }
 
@@ -140,17 +140,80 @@ try {
 
     $debug_log[] = "Conexión a BD establecida correctamente";
 
-    // --- CREAR ESTRUCTURA DE CARPETAS ---
-    if (!mkdir($client_dir, 0755, true)) {
-        throw new Exception("No se pudo crear la carpeta del cliente.");
+    // --- CREAR ESTRUCTURA DE CARPETAS BASE ---
+    if (!mkdir($client_config_dir, 0755, true)) {
+        throw new Exception("No se pudo crear la carpeta de configuración del cliente.");
     }
-    $debug_log[] = "Carpeta del cliente creada: $client_dir";
+    $debug_log[] = "Carpeta de configuración del cliente creada: $client_config_dir";
     
     $uploads_dir = __DIR__ . '/uploads/' . $client_id . '/';
     if (!mkdir($uploads_dir, 0755, true)) {
         throw new Exception("No se pudo crear la carpeta de uploads.");
     }
     $debug_log[] = "Carpeta de uploads creada: $uploads_dir";
+    
+    // =============================================================
+    // --- NUEVO: CREAR ESTRUCTURA DE ENRUTAMIENTO Y COPIAR ARCHIVOS ---
+    // =============================================================
+    
+    $admin_template_dir = __DIR__ . '/admin/';
+    $bc_template_dir = __DIR__ . '/bc/';
+    $client_admin_dir = $admin_template_dir . $client_id . '/';
+    $client_bc_dir = $bc_template_dir . $client_id . '/';
+
+    // 1. Crear carpetas de enrutamiento
+    if (!mkdir($client_admin_dir, 0755, true) || !mkdir($client_bc_dir, 0755, true)) {
+        throw new Exception("No se pudo crear la estructura de carpetas de enrutamiento (/admin/{$client_id}, /bc/{$client_id}).");
+    }
+    $debug_log[] = "Carpetas de enrutamiento creadas.";
+
+    // 2. Copiar archivos del núcleo de Admin (index.php y script.js del nivel superior)
+    foreach (['index.php', 'script.js'] as $file) {
+        if (!copy($admin_template_dir . $file, $client_admin_dir . $file)) {
+            throw new Exception("Fallo al copiar archivo base de admin: " . $file);
+        }
+    }
+    // Crear .htaccess para admin
+    $htaccess_admin_content = "RewriteEngine On\nRewriteBase /admin/{$client_id}/\nRewriteRule ^$ index.php [L]";
+    if (!file_put_contents($client_admin_dir . '.htaccess', $htaccess_admin_content)) {
+         throw new Exception("Fallo al crear .htaccess de admin para el cliente.");
+    }
+
+    // 3. Copiar archivos del núcleo de BC (usando bc/kino como plantilla, pues bc/index.php es un loader simple)
+    $bc_kino_template_dir = $bc_template_dir . 'kino/';
+    // Asegurarse de que el directorio de plantilla exista
+    if (is_dir($bc_kino_template_dir)) {
+        foreach (['index.php', 'script.js'] as $file) {
+            if (!copy($bc_kino_template_dir . $file, $client_bc_dir . $file)) {
+                $debug_log[] = "Advertencia: Fallo al copiar $file de $bc_kino_template_dir. Intentando fallback.";
+                // Fallback a bc/index.php (el loader) si la copia de plantilla falla
+                if (!copy($bc_template_dir . 'index.php', $client_bc_dir . 'index.php')) {
+                    throw new Exception("Fallo al copiar archivo base de bc: " . $file);
+                }
+            }
+        }
+    } else {
+        // Si no existe la carpeta de plantilla kino, se copia el loader base
+        if (!copy($bc_template_dir . 'index.php', $client_bc_dir . 'index.php')) {
+            throw new Exception("Fallo al copiar el archivo base bc/index.php.");
+        }
+        // y script.js genérico si existe
+        if (file_exists($bc_template_dir . 'script.js') && !copy($bc_template_dir . 'script.js', $client_bc_dir . 'script.js')) {
+             $debug_log[] = "Advertencia: Fallo al copiar el script base bc/script.js.";
+        }
+    }
+
+    // Crear .htaccess para bc
+    $htaccess_bc_content = "RewriteEngine On\nRewriteBase /bc/{$client_id}/\nRewriteRule ^$ index.php [L]";
+    if (!file_put_contents($client_bc_dir . '.htaccess', $htaccess_bc_content)) {
+         throw new Exception("Fallo al crear .htaccess de bc para el cliente.");
+    }
+    
+    $debug_log[] = "Archivos de enrutamiento copiados y creados.";
+
+    // =============================================================
+    // --- FIN NUEVO BLOQUE ---
+    // =============================================================
 
     // --- GUARDAR LOGO ---
     $logo_ext = strtolower(pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION));
@@ -158,7 +221,7 @@ try {
         throw new Exception("El logo debe ser un archivo PNG.");
     }
     
-    $logo_path = $client_dir . 'logo.png';
+    $logo_path = $client_config_dir . 'logo.png';
     if (!move_uploaded_file($_FILES['logo']['tmp_name'], $logo_path)) {
         throw new Exception("No se pudo guardar el logo.");
     }
@@ -221,7 +284,7 @@ return [
 ];
 ";
 
-    if (!file_put_contents($client_dir . 'config.php', $config_content)) {
+    if (!file_put_contents($client_config_dir . 'config.php', $config_content)) {
         throw new Exception("No se pudo crear el archivo de configuración.");
     }
     $debug_log[] = "Archivo config.php creado";
@@ -274,6 +337,9 @@ return [
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
     $host = $_SERVER['HTTP_HOST'];
     $base_uri = rtrim(dirname($_SERVER['REQUEST_URI']), '/\\');
+    
+    // Si la URI contiene el nombre de la carpeta contenedora, se elimina para obtener la URI raíz.
+    $base_uri = str_replace("/KINOAPP-5f6e2cdcd4f9681292fb573868ba6965ac7e7935", "", $base_uri);
 
     $debug_log[] = "Cliente creado exitosamente";
 
@@ -294,15 +360,29 @@ return [
 
 } catch (Exception $e) {
     // --- LIMPIEZA EN CASO DE ERROR ---
-    if (isset($client_dir) && is_dir($client_dir)) {
-        $files = glob($client_dir . '*');
+    
+    // Función para eliminar directorio recursivamente (necesaria para la limpieza)
+    function delete_directory($dir) {
+        if (!is_dir($dir)) return;
+        $files = array_diff(scandir($dir), ['.', '..']);
         foreach ($files as $file) {
-            if (is_file($file)) unlink($file);
+            (is_dir("$dir/$file")) ? delete_directory("$dir/$file") : unlink("$dir/$file");
         }
-        rmdir($client_dir);
+        rmdir($dir);
+    }
+    
+    if (isset($client_config_dir) && is_dir($client_config_dir)) {
+        delete_directory($client_config_dir);
     }
     if (isset($uploads_dir) && is_dir($uploads_dir)) {
         rmdir($uploads_dir);
+    }
+    // Limpieza de directorios de enrutamiento creados
+    if (isset($client_admin_dir) && is_dir($client_admin_dir)) {
+         delete_directory($client_admin_dir);
+    }
+    if (isset($client_bc_dir) && is_dir($client_bc_dir)) {
+         delete_directory($client_bc_dir);
     }
 
     // --- RESPUESTA DE ERROR DETALLADA ---

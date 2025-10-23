@@ -73,6 +73,7 @@ async function handleApiResponse(response) {
     }
     
     try {
+        // Manejo de respuesta JSON
         const json = await response.json();
         
         if (response.ok && json.success) {
@@ -545,13 +546,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 startPolling(refreshList);
             } else {
                 stopPolling();
-            }
-            
-            // Si el código se oculta, reactivar el polling
-            if (tab.dataset.tab !== 'tab-list') {
-                if (intervalId === null) {
-                   refreshList(); // Refrescar una vez para mantener los datos frescos si es necesario
-                }
             }
         };
     });
