@@ -55,6 +55,11 @@ if (isset($_GET['logout'])) {
     header("Location: " . strtok($_SERVER['REQUEST_URI'], '?'));
     exit;
 }
+
+// --- CORRECCIÓN DE RUTA PARA EL LOGO ---
+// La ruta en config.php es: '../clientes/kino/logo.png' (relativa al directorio /admin/).
+// Desde la URL del navegador (/admin/kino/), necesitamos una ruta que suba 2 niveles: '../../clientes/kino/logo.png'.
+$logo_path_browser = str_replace('../', '../../', $branding['logo_path']);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -77,7 +82,7 @@ if (isset($_GET['logout'])) {
 
 <?php if (!$is_logged_in): ?>
     <div class="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 mt-20">
-        <img src="<?php echo htmlspecialchars($branding['logo_path']); ?>" alt="Logo" class="mx-auto h-20 mb-6">
+        <img src="<?php echo htmlspecialchars($logo_path_browser); ?>" alt="Logo" class="mx-auto h-20 mb-6">
         <h1 class="text-2xl font-bold text-center mb-6">Panel de Administración</h1>
         <h2 class="text-xl text-center mb-4 text-gray-700"><?php echo htmlspecialchars($branding['client_name']); ?></h2>
         
@@ -127,7 +132,7 @@ if (isset($_GET['logout'])) {
     <div id="mainContent" class="w-full max-w-4xl bg-white rounded-2xl shadow-lg">
         <header class="bg-white border-b flex items-center justify-between px-6 py-4">
             <div class="flex items-center">
-                <img src="<?php echo htmlspecialchars($branding['logo_path']); ?>" alt="Logo" class="h-10 mr-4">
+                <img src="<?php echo htmlspecialchars($logo_path_browser); ?>" alt="Logo" class="h-10 mr-4">
                 <div>
                     <h1 class="text-2xl font-bold text-gray-800"><?php echo htmlspecialchars($branding['client_name']); ?></h1>
                     <p class="text-sm text-gray-600">Panel de Administración</p>
@@ -195,12 +200,14 @@ if (isset($_GET['logout'])) {
     <script>
         // CONFIGURACIÓN DINÁMICA DEL CLIENTE
         const CLIENT_ID = '<?php echo $client_id; ?>';
-        const API_URL = '../api.php?client=' + CLIENT_ID; // Se corrigió la ruta a '../api.php'
+        // API_URL apunta correctamente al archivo api.php en la carpeta superior
+        const API_URL = '../api.php?client=' + CLIENT_ID; 
         const DELETION_KEY = '0101';
         
-        // Cargar el script principal
+        // Cargar el script principal: CORRECCIÓN DE RUTA para acceder al archivo central
         const script = document.createElement('script');
-        script.src = '../admin/script.js?client=' + CLIENT_ID + '&v=' + Date.now(); // Se corrigió la ruta a '../admin/script.js'
+        // Ruta: sale del subdirectorio (kino/) a la carpeta admin/ donde está script.js
+        script.src = '../script.js?client=' + CLIENT_ID + '&v=' + Date.now();
         document.body.appendChild(script);
     </script>
 <?php endif; ?>
